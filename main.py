@@ -5,6 +5,7 @@ import json
 import requests
 import uuid
 import os
+import re
 
 
 def check_signature(request_data, key):
@@ -17,13 +18,23 @@ def check_signature(request_data, key):
 def check_label(request_data, label):
     return int(label) in request_data.json['event_data']['labels']
 
+def inc(x):
+    if x.group(2):
+        return '[%d/%s]' % (int(x.group(1)) + 1, x.group(2))
+    else:
+        return '[%d]' % (int(x.group(1)) + 1)
+
+
+def task_counter(string):
+    return re.sub(r"\[(\d+)\/?(\d+)?\]", inc, string)
+
 
 def duplicate_task(request_data):
     old_task = request_data.json['event_data']
     requests.post(
         "https://api.todoist.com/rest/v1/tasks",
         data=json.dumps({
-            "content": old_task['content'],
+            "content": task_counter(old_task['content']),
             "project_id": old_task['project_id'],
             "section_id": old_task['section_id'],
             "parent": old_task['parent_id'],
