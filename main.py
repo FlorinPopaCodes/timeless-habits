@@ -15,7 +15,7 @@ def check_signature(request_data, key):
 
 
 def check_label(request_data, label):
-    return label in request_data.json['event_data']['labels']
+    return int(label) in request_data.json['event_data']['labels']
 
 
 def duplicate_task(request_data):
