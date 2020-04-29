@@ -6,6 +6,8 @@ import requests
 import uuid
 import os
 import re
+import sentry_sdk
+from sentry_sdk.integrations.serverless import serverless_function
 
 
 def check_signature(request_data, key):
@@ -17,6 +19,7 @@ def check_signature(request_data, key):
 
 def check_label(request_data, label):
     return int(label) in request_data.json['event_data']['labels']
+
 
 def inc(x):
     if x.group(2):
@@ -49,6 +52,10 @@ def duplicate_task(request_data):
         }).json()
 
 
+sentry_sdk.init(dsn=os.environ.get('SENTRY_DSN'))
+
+
+@serverless_function
 def webhooks(request):
     if not check_signature(request, os.environ.get('TODOIST_CLIENT_SECRET')):
         return '', 403
