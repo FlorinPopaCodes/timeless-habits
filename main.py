@@ -17,19 +17,9 @@ def check_signature(request_data, key):
     return hmac.compare_digest(local_digest, received_digest)
 
 
-def check_label(request_data, label):
-    return int(label) in request_data.json['event_data']['labels']
-
-
-def inc(x):
-    if x.group(2):
-        return '[%d/%s]' % (int(x.group(1)) + 1, x.group(2))
-    else:
-        return '[%d]' % (int(x.group(1)) + 1)
-
-
-def task_counter(string):
-    return re.sub(r"\[(\d+)\/?(\d+)?\]", inc, string)
+def check_task(title):
+    SAFETY_PIN = '🧷'
+    return SAFETY_PIN in title
 
 
 def duplicate_task(request_data):
@@ -37,7 +27,7 @@ def duplicate_task(request_data):
     requests.post(
         "https://api.todoist.com/rest/v1/tasks",
         data=json.dumps({
-            "content": task_counter(old_task['content']),
+            "content": old_task['content'],
             "project_id": old_task['project_id'],
             "section_id": old_task['section_id'],
             "parent": old_task['parent_id'],
@@ -64,7 +54,7 @@ def webhooks(request):
     # TODO
 
     # check if the label is 'timeless-habit'; otherwise ignore
-    if check_label(request, os.environ.get('TIMELESS_LABEL')):
+    if check_label(request_data.json['event_data']['content']):
         # try to recreate / duplicate the item
         duplicate_task(request)
 

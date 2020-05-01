@@ -1,23 +1,11 @@
 import pytest
 
-from main import task_counter
+from main import check_task
 
 
-def test_task_counter_does_nothing_most_of_the_time():
-    assert 'Implement tower of Babel' == task_counter('Implement tower of Babel')
+def test_that_we_only_care_for_tasks_that_have_the_safety_pin_in_their_content():
+    assert check_task("🧷 We need to keep this tasked pinned")
 
 
-def test_task_counter_does_not_increment_random_numbers():
-    assert 'Phone 555-555-555' == \
-           task_counter('Phone 555-555-555')
-
-
-def test_task_counter_increments_numbers_between_brakets():
-    assert 'Solve https://exercism.io/my/tracks/ruby challenge [32]' == \
-           task_counter('Solve https://exercism.io/my/tracks/ruby challenge [31]')
-
-
-# @pytest.mark.xfail
-def test_task_counter_increments_the_first_number_between_brakets():
-    assert 'Solve https://exercism.io/my/tracks/ruby challenge [32/79]' == \
-           task_counter('Solve https://exercism.io/my/tracks/ruby challenge [31/79]')
+def test_that_we_ignore_other_emojis():
+    assert False == check_task("🔧🦾🔩 Build factory of the future")
