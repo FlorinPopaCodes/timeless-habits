@@ -38,7 +38,7 @@ def duplicate_task(old_task, user_token):
         }),
         headers={
             "Content-Type": "application/json",
-            "X-Request-Id": old_task['id'],
+            "X-Request-Id": str(old_task['id']),
             "Authorization": "Bearer %s" % user_token
         }).json()
 
