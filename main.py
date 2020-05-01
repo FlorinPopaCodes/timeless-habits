@@ -22,8 +22,7 @@ def check_task(title):
     return SAFETY_PIN in title
 
 
-def duplicate_task(request_data):
-    old_task = request_data.json['event_data']
+def duplicate_task(old_task):
     requests.post(
         "https://api.todoist.com/rest/v1/tasks",
         data=json.dumps({
@@ -54,8 +53,8 @@ def webhooks(request):
     # TODO
 
     # check if the label is 'timeless-habit'; otherwise ignore
-    if check_label(request_data.json['event_data']['content']):
+    if check_label(request.json['event_data']['content']):
         # try to recreate / duplicate the item
-        duplicate_task(request)
+        duplicate_task(request_data.json['event_data'])
 
     return '', 204
