@@ -53,7 +53,7 @@ def webhooks(request):
     # TODO
 
     # check if the label is 'timeless-habit'; otherwise ignore
-    if check_label(request.json['event_data']['content']):
+    if check_task(request.json['event_data']['content']):
         # try to recreate / duplicate the item
         duplicate_task(request_data.json['event_data'])
 
