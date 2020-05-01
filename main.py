@@ -6,8 +6,7 @@ import requests
 import uuid
 import os
 import re
-import sentry_sdk
-from sentry_sdk.integrations.serverless import serverless_function
+from google.cloud import firestore
 
 
 def check_signature(request_data, key):
@@ -21,13 +20,11 @@ def check_signature(request_data, key):
 
 
 def check_task(title):
-    SAFETY_PIN = '🧷'
+    SAFETY_PIN = u'🧷'
     return SAFETY_PIN in title
 
 
-def duplicate_task(old_task):
-    # TODO get user's token based on the payload user; otherwise return 403
-
+def duplicate_task(old_task, user_token):
     requests.post(
         "https://api.todoist.com/rest/v1/tasks",
         data=json.dumps({
@@ -41,20 +38,25 @@ def duplicate_task(old_task):
         }),
         headers={
             "Content-Type": "application/json",
-            "X-Request-Id": str(uuid.uuid4()),
-            "Authorization": "Bearer %s" % os.environ.get('USER_TOKEN')
+            "X-Request-Id": old_task['id'],
+            "Authorization": "Bearer %s" % user_token
         }).json()
 
 
-sentry_sdk.init(dsn=os.environ.get('SENTRY_DSN'))
+def get_access_token(user_id):
+    return firestore.Client().collection(u'users').document(str(user_id)).get().to_dict().get('access_token')
 
 
-@serverless_function
 def webhooks(request):
     if not check_signature(request, os.environ.get('TODOIST_CLIENT_SECRET')):
         return '', 403
 
+    user_token = get_access_token(request.json['user_id'])
+
+    if user_token == None:
+        return '', 403
+
     if check_task(request.json['event_data']['content']):
-        duplicate_task(request.json['event_data'])
+        duplicate_task(request.json['event_data'], user_token)
 
     return '', 204
