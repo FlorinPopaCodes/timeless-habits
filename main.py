@@ -7,6 +7,7 @@ import uuid
 import os
 import re
 from google.cloud import firestore
+from datetime import datetime
 
 
 def check_signature(request_data, key):
@@ -24,11 +25,37 @@ def check_task(title):
     return SAFETY_PIN in title
 
 
+def inc(x):
+    if x.group(2):
+        return '[%d/%s]' % (int(x.group(1)) + 1, x.group(2))
+    else:
+        return '[%d]' % (int(x.group(1)) + 1)
+
+
+def task_counter(string):
+    return re.sub(r"\[(\d+)\/?(\d+)?\]", inc, string)
+
+
+def update_date(x):
+    current_date = datetime.now().strftime("%Y/%m/%d")
+
+    return '[%s]' % current_date
+
+
+def date_updater(string):
+    return re.sub(r"\[(\d{4})-(\d{2})-(\d{2})\]", update_date, string)
+
+
+def update_title(title):
+
+    return date_updater(task_counter(title))
+
+
 def duplicate_task(old_task, user_token):
     requests.post(
         "https://api.todoist.com/rest/v1/tasks",
         data=json.dumps({
-            "content": old_task['content'],
+            "content": update_title(old_task['content']),
             "project_id": old_task['project_id'],
             "section_id": old_task['section_id'],
             "parent": old_task['parent_id'],
