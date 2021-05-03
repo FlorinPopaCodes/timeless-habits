@@ -37,7 +37,7 @@ def task_counter(string):
 
 
 def update_date(x):
-    current_date = datetime.now().strftime("%Y/%m/%d")
+    current_date = datetime.now().strftime("%Y-%m-%d")
 
     return '[%s]' % current_date
 

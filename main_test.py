@@ -18,7 +18,7 @@ def test_everything_works_end_to_end():
 
 
 def test_that_we_add_the_last_completion_date():
-    assert datetime.now().strftime("%Y/%m/%d") in update_title("🧷 We need to keep this tasked pinned [2021-04-19]")
+    assert datetime.now().strftime("%Y-%m-%d") in update_title("🧷 We need to keep this tasked pinned [2021-04-19]")
 
 
 def test_that_we_increment_a_simple_counter():
