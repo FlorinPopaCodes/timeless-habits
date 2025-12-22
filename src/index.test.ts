@@ -11,7 +11,7 @@ describe("Timeless Habits", () => {
 	});
 
 	test("add last completion date", () => {
-		const today = new Date().toISOString().split("T")[0] as string;
+		const today = new Date().toISOString().split("T")[0]!;
 		const result = updateTitle(
 			"🧷 We need to keep this tasked pinned [2021-04-19]",
 		);
@@ -51,13 +51,13 @@ describe("taskCounter", () => {
 
 describe("dateUpdater", () => {
 	test("updates date to today", () => {
-		const today = new Date().toISOString().split("T")[0] as string;
+		const today = new Date().toISOString().split("T")[0]!;
 		expect(dateUpdater("[2021-04-19]")).toBe(`[${today}]`);
 		expect(dateUpdater("[1999-01-01]")).toBe(`[${today}]`);
 	});
 
 	test("handles multiple dates in title", () => {
-		const today = new Date().toISOString().split("T")[0] as string;
+		const today = new Date().toISOString().split("T")[0]!;
 		expect(dateUpdater("Start [2021-01-01] End [2021-12-31]")).toBe(
 			`Start [${today}] End [${today}]`,
 		);

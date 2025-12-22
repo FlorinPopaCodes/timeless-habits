@@ -24,9 +24,8 @@ interface WebhookPayload {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-const SAFETY_PIN = "\u{1F9F7}"; // 🧷
+const SAFETY_PIN = "🧷";
 
-// Business Logic (exported for testing)
 export function checkTask(title: string): boolean {
 	return title.includes(SAFETY_PIN);
 }
@@ -42,7 +41,7 @@ export function taskCounter(str: string): string {
 }
 
 export function dateUpdater(str: string): string {
-	const today = new Date().toISOString().split("T")[0] as string;
+	const today = new Date().toISOString().split("T")[0]!;
 	return str.replace(/\[\d{4}-\d{2}-\d{2}\]/g, `[${today}]`);
 }
 
@@ -50,7 +49,6 @@ export function updateTitle(title: string): string {
 	return dateUpdater(taskCounter(title));
 }
 
-// Constant-time string comparison to prevent timing attacks
 function timingSafeEqual(a: ArrayBuffer, b: ArrayBuffer): boolean {
 	if (a.byteLength !== b.byteLength) return false;
 	const viewA = new Uint8Array(a);
@@ -62,7 +60,6 @@ function timingSafeEqual(a: ArrayBuffer, b: ArrayBuffer): boolean {
 	return result === 0;
 }
 
-// HMAC Signature Validation
 async function checkSignature(
 	body: string,
 	signature: string | undefined,
@@ -85,7 +82,6 @@ async function checkSignature(
 		encoder.encode(body),
 	);
 
-	// Decode received signature from base64
 	const receivedDigest = Uint8Array.from(atob(signature), (c) =>
 		c.charCodeAt(0),
 	).buffer;
@@ -93,7 +89,6 @@ async function checkSignature(
 	return timingSafeEqual(localDigest, receivedDigest);
 }
 
-// Todoist API
 async function duplicateTask(
 	oldTask: TodoistTask,
 	token: string,
@@ -121,7 +116,6 @@ async function duplicateTask(
 	}
 }
 
-// Webhook Handler
 app.post("/webhooks", async (c) => {
 	const rawBody = await c.req.text();
 	const signature = c.req.header("X-Todoist-Hmac-Sha256");
