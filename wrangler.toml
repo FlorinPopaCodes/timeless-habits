@@ -1,0 +1,7 @@
+name = "timeless-habits"
+main = "src/index.ts"
+compatibility_date = "2025-12-22"
+
+# Secrets (set via: wrangler secret put TODOIST_CLIENT_SECRET)
+# - TODOIST_CLIENT_SECRET: Webhook signature validation
+# - TODOIST_ACCESS_TOKEN: Your Todoist API token
