@@ -14,6 +14,7 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@doist/todoist-api-typescript": "^6.2.1",
     "hono": "^4.11.1"
   },
   "devDependencies": {
