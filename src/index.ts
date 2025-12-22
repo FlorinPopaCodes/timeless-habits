@@ -1,25 +1,20 @@
 import { Hono } from "hono";
+import {
+	duplicateTask,
+	TodoistApi,
+	TodoistRequestError,
+	type WebhookTask,
+} from "./todoist";
 
 type Bindings = {
 	TODOIST_CLIENT_SECRET: string;
 	TODOIST_ACCESS_TOKEN: string;
 };
 
-interface TodoistTask {
-	id: string;
-	content: string;
-	project_id: string;
-	section_id: string;
-	parent_id: string | null;
-	child_order: number;
-	labels: string[];
-	priority: number;
-}
-
 interface WebhookPayload {
 	event_name: string;
 	user_id: number;
-	event_data: TodoistTask;
+	event_data: WebhookTask;
 }
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -89,33 +84,6 @@ async function checkSignature(
 	return timingSafeEqual(localDigest, receivedDigest);
 }
 
-async function duplicateTask(
-	oldTask: TodoistTask,
-	token: string,
-): Promise<void> {
-	const response = await fetch("https://api.todoist.com/rest/v1/tasks", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			"X-Request-Id": `thid${oldTask.id}`,
-			Authorization: `Bearer ${token}`,
-		},
-		body: JSON.stringify({
-			content: updateTitle(oldTask.content),
-			project_id: oldTask.project_id,
-			section_id: oldTask.section_id,
-			parent: oldTask.parent_id,
-			order: oldTask.child_order,
-			label_ids: oldTask.labels,
-			priority: oldTask.priority,
-		}),
-	});
-
-	if (!response.ok) {
-		throw new Error(`Todoist API error: ${response.status}`);
-	}
-}
-
 app.post("/webhooks", async (c) => {
 	const rawBody = await c.req.text();
 	const signature = c.req.header("X-Todoist-Hmac-Sha256");
@@ -136,8 +104,26 @@ app.post("/webhooks", async (c) => {
 		return c.body(null, 400);
 	}
 
-	if (checkTask(payload.event_data.content)) {
-		await duplicateTask(payload.event_data, c.env.TODOIST_ACCESS_TOKEN);
+	// Only process task completion events for tasks with the safety pin emoji
+	if (
+		payload.event_name === "item:completed" &&
+		checkTask(payload.event_data.content)
+	) {
+		const api = new TodoistApi(c.env.TODOIST_ACCESS_TOKEN);
+		const newContent = updateTitle(payload.event_data.content);
+
+		try {
+			await duplicateTask(api, payload.event_data, newContent);
+		} catch (error) {
+			if (error instanceof TodoistRequestError) {
+				console.error(
+					`Todoist API error: ${error.httpStatusCode} - ${error.message}`,
+				);
+				// Return 204 to acknowledge webhook and prevent retries for API errors
+				return c.body(null, 204);
+			}
+			throw error;
+		}
 	}
 
 	return c.body(null, 204);
