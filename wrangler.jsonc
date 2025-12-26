@@ -1,0 +1,15 @@
+{
+  "name": "timeless-habits",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-12-22",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Secrets (set via: wrangler secret put <SECRET_NAME>)
+  // - TODOIST_CLIENT_SECRET: Webhook signature validation
+  // - TODOIST_ACCESS_TOKEN: Your Todoist API token
+
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
