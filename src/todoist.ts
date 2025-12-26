@@ -10,6 +10,7 @@ export type { Task };
 
 /**
  * Webhook task data from Todoist (snake_case format from webhook payload).
+ * Note: This is intentionally minimal - only fields used by the worker are included.
  */
 export interface WebhookTask {
 	id: string;
@@ -20,6 +21,7 @@ export interface WebhookTask {
 	child_order: number;
 	labels: string[];
 	priority: number;
+	completed_at: string;
 }
 
 /**
@@ -48,10 +50,10 @@ export async function duplicateTask(
 		addTaskArgs.parentId = task.parent_id;
 	}
 
-	// Request ID format: "th-{taskId}-{timestamp}"
-	// - Prevents duplicate creation from webhook retries (same timestamp)
-	// - Allows recreation when recurring task is completed again (different timestamp)
-	const requestId = `th-${task.id}-${Date.now()}`;
+	// Request ID format: "th-{taskId}-{completed_at}"
+	// - Prevents duplicate creation from webhook retries (same completed_at)
+	// - Allows recreation when task is completed again (different completed_at)
+	const requestId = `th-${task.id}-${task.completed_at}`;
 
 	return api.addTask(addTaskArgs, requestId);
 }

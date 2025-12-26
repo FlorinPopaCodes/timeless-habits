@@ -36,7 +36,7 @@ export function taskCounter(str: string): string {
 }
 
 export function dateUpdater(str: string): string {
-	const today = new Date().toISOString().split("T")[0]!;
+	const today = new Date().toISOString().slice(0, 10);
 	return str.replace(/\[\d{4}-\d{2}-\d{2}\]/g, `[${today}]`);
 }
 
