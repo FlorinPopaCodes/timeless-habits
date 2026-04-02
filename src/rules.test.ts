@@ -1,97 +1,144 @@
 import { describe, expect, test } from "bun:test";
 import {
 	applyRules,
+	checkTask,
 	dateUpdater,
 	taskCounter,
-	youtubePrefix,
+	youtubeLabel,
 } from "./rules";
+
+const ctx = (content: string, labels: string[] = []) => ({
+	content,
+	labels,
+});
 
 describe("taskCounter", () => {
 	test("increments simple counter", () => {
-		expect(taskCounter("[0]")).toBe("[1]");
-		expect(taskCounter("[99]")).toBe("[100]");
-		expect(taskCounter("[543]")).toBe("[544]");
+		expect(taskCounter(ctx("[0]")).content).toBe("[1]");
+		expect(taskCounter(ctx("[99]")).content).toBe("[100]");
+		expect(taskCounter(ctx("[543]")).content).toBe("[544]");
 	});
 
 	test("increments bounded counter", () => {
-		expect(taskCounter("[0/10]")).toBe("[1/10]");
-		expect(taskCounter("[122/222]")).toBe("[123/222]");
-		expect(taskCounter("[364/365]")).toBe("[365/365]");
+		expect(taskCounter(ctx("[0/10]")).content).toBe("[1/10]");
+		expect(taskCounter(ctx("[122/222]")).content).toBe("[123/222]");
+		expect(taskCounter(ctx("[364/365]")).content).toBe("[365/365]");
 	});
 
 	test("handles multiple counters in title", () => {
-		expect(taskCounter("Task [5] with [10/20]")).toBe("Task [6] with [11/20]");
+		expect(taskCounter(ctx("Task [5] with [10/20]")).content).toBe(
+			"Task [6] with [11/20]",
+		);
 	});
 });
 
 describe("dateUpdater", () => {
 	test("updates date to today", () => {
 		const today = new Date().toISOString().slice(0, 10);
-		expect(dateUpdater("[2021-04-19]")).toBe(`[${today}]`);
-		expect(dateUpdater("[1999-01-01]")).toBe(`[${today}]`);
+		expect(dateUpdater(ctx("[2021-04-19]")).content).toBe(`[${today}]`);
+		expect(dateUpdater(ctx("[1999-01-01]")).content).toBe(`[${today}]`);
 	});
 
 	test("handles multiple dates in title", () => {
 		const today = new Date().toISOString().slice(0, 10);
-		expect(dateUpdater("Start [2021-01-01] End [2021-12-31]")).toBe(
-			`Start [${today}] End [${today}]`,
-		);
+		expect(
+			dateUpdater(ctx("Start [2021-01-01] End [2021-12-31]")).content,
+		).toBe(`Start [${today}] End [${today}]`);
 	});
 });
 
-describe("youtubePrefix", () => {
-	test("prefixes youtube.com/watch URLs", () => {
-		expect(youtubePrefix("Check https://youtube.com/watch?v=abc123")).toBe(
-			"[VIDEO] Check https://youtube.com/watch?v=abc123",
+describe("youtubeLabel", () => {
+	test("adds Video::Content label for youtube.com/watch URLs", () => {
+		const result = youtubeLabel(
+			ctx("Check https://youtube.com/watch?v=abc123"),
 		);
+		expect(result.content).toBe("Check https://youtube.com/watch?v=abc123");
+		expect(result.addLabels).toEqual(["Video::Content"]);
 	});
 
-	test("prefixes youtu.be short URLs", () => {
-		expect(youtubePrefix("Watch https://youtu.be/abc123")).toBe(
-			"[VIDEO] Watch https://youtu.be/abc123",
-		);
+	test("adds label for youtu.be short URLs", () => {
+		const result = youtubeLabel(ctx("Watch https://youtu.be/abc123"));
+		expect(result.addLabels).toEqual(["Video::Content"]);
 	});
 
-	test("prefixes youtube.com/shorts URLs", () => {
-		expect(youtubePrefix("See https://youtube.com/shorts/abc123")).toBe(
-			"[VIDEO] See https://youtube.com/shorts/abc123",
-		);
+	test("adds label for youtube.com/shorts URLs", () => {
+		const result = youtubeLabel(ctx("See https://youtube.com/shorts/abc123"));
+		expect(result.addLabels).toEqual(["Video::Content"]);
 	});
 
-	test("prefixes www.youtube.com URLs", () => {
-		expect(youtubePrefix("Check https://www.youtube.com/watch?v=abc123")).toBe(
-			"[VIDEO] Check https://www.youtube.com/watch?v=abc123",
+	test("adds label for www.youtube.com URLs", () => {
+		const result = youtubeLabel(
+			ctx("Check https://www.youtube.com/watch?v=abc123"),
 		);
+		expect(result.addLabels).toEqual(["Video::Content"]);
 	});
 
-	test("is idempotent — already prefixed content unchanged", () => {
-		const prefixed = "[VIDEO] Watch https://youtube.com/watch?v=abc123";
-		expect(youtubePrefix(prefixed)).toBe(prefixed);
+	test("is idempotent — skips if label already present", () => {
+		const result = youtubeLabel(
+			ctx("Watch https://youtube.com/watch?v=abc123", ["Video::Content"]),
+		);
+		expect(result.addLabels).toBeUndefined();
 	});
 
 	test("leaves non-YouTube content unchanged", () => {
-		expect(youtubePrefix("Buy groceries")).toBe("Buy groceries");
-		expect(youtubePrefix("Check https://vimeo.com/123")).toBe(
-			"Check https://vimeo.com/123",
-		);
+		expect(youtubeLabel(ctx("Buy groceries")).addLabels).toBeUndefined();
+		expect(
+			youtubeLabel(ctx("Check https://vimeo.com/123")).addLabels,
+		).toBeUndefined();
+	});
+});
+
+describe("checkTask", () => {
+	test("returns true when Pinned label present", () => {
+		expect(checkTask(ctx("Any content", ["Pinned_\u{1F9F7}"]))).toBe(true);
+	});
+
+	test("returns false when Pinned label absent", () => {
+		expect(checkTask(ctx("Any content", []))).toBe(false);
+		expect(checkTask(ctx("Any content", ["Other"]))).toBe(false);
 	});
 });
 
 describe("applyRules", () => {
 	test("returns content unchanged with empty rules", () => {
-		expect(applyRules("hello", [])).toBe("hello");
+		const result = applyRules(ctx("hello"), []);
+		expect(result.content).toBe("hello");
+		expect(result.addLabels).toBeUndefined();
 	});
 
 	test("applies rules in order", () => {
-		const addA = (s: string) => `${s}A`;
-		const addB = (s: string) => `${s}B`;
-		expect(applyRules("X", [addA, addB])).toBe("XAB");
+		const addA = (c: { content: string; labels: string[] }) => ({
+			content: `${c.content}A`,
+		});
+		const addB = (c: { content: string; labels: string[] }) => ({
+			content: `${c.content}B`,
+		});
+		expect(applyRules(ctx("X"), [addA, addB]).content).toBe("XAB");
 	});
 
-	test("loop prevention: reapplying rules to already-rewritten content is a no-op", () => {
-		const content = "Watch https://youtube.com/watch?v=abc123";
-		const firstPass = applyRules(content, [youtubePrefix]);
-		const secondPass = applyRules(firstPass, [youtubePrefix]);
-		expect(secondPass).toBe(firstPass);
+	test("accumulates labels from multiple rules", () => {
+		const labelA = (c: { content: string; labels: string[] }) => ({
+			content: c.content,
+			addLabels: ["A"],
+		});
+		const labelB = (c: { content: string; labels: string[] }) => ({
+			content: c.content,
+			addLabels: ["B"],
+		});
+		expect(applyRules(ctx("X"), [labelA, labelB]).addLabels).toEqual([
+			"A",
+			"B",
+		]);
+	});
+
+	test("loop prevention: reapplying youtubeLabel with label already present is a no-op", () => {
+		const first = applyRules(ctx("Watch https://youtube.com/watch?v=abc123"), [
+			youtubeLabel,
+		]);
+		const second = applyRules(
+			{ content: first.content, labels: [...(first.addLabels ?? [])] },
+			[youtubeLabel],
+		);
+		expect(second.addLabels).toBeUndefined();
 	});
 });

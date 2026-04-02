@@ -24,29 +24,43 @@ export interface WebhookTask {
 	completed_at: string;
 }
 
+async function hashPayload(input: string): Promise<string> {
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(input),
+	);
+	return Array.from(new Uint8Array(digest).slice(0, 8))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
+}
+
 /**
- * Creates a duplicate of a task with updated content.
- * Uses requestId for idempotency to prevent duplicate tasks from webhook retries.
- * Includes timestamp to allow the same task to be recreated on future completions.
+ * Updates a task's content and/or labels.
+ * requestId is derived from the original webhook payload (content + labels)
+ * so retries of the same webhook are deduplicated, but new updates get a fresh ID.
  */
-export async function updateTaskContent(
+export async function updateTask(
 	api: TodoistApi,
 	taskId: string,
-	newContent: string,
+	updates: { content?: string; labels?: string[] },
+	originalTask: { content: string; labels: string[] },
 ): Promise<Task> {
-	const requestId = `th-update-${taskId}-${Date.now()}`;
-	return api.updateTask(taskId, { content: newContent }, requestId);
+	const fingerprint = `${originalTask.content}\0${originalTask.labels.join(",")}`;
+	const hash = await hashPayload(fingerprint);
+	const requestId = `th-update-${taskId}-${hash}`;
+	return api.updateTask(taskId, updates, requestId);
 }
 
 export async function duplicateTask(
 	api: TodoistApi,
 	task: WebhookTask,
 	newContent: string,
+	labels?: string[],
 ): Promise<Task> {
 	const addTaskArgs: AddTaskArgs = {
 		content: newContent,
 		projectId: task.project_id,
-		labels: task.labels,
+		labels: labels ?? task.labels,
 		priority: task.priority,
 		order: task.child_order,
 	};
