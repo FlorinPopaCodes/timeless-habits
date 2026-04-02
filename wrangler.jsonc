@@ -6,10 +6,20 @@
 
   // Secrets (set via: wrangler secret put <SECRET_NAME>)
   // - TODOIST_CLIENT_SECRET: Webhook signature validation
+  // - TODOIST_CLIENT_ID: OAuth app client ID
   // - TODOIST_ACCESS_TOKEN: Your Todoist API token
+
+  "vars": {
+    "APP_URL": "https://timeless-habits.florinpopa.workers.dev",
+  },
 
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
-  }
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "head_sampling_rate": 1,
+    },
+  },
 }

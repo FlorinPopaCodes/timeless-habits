@@ -1,111 +1,54 @@
----
-description: Use Bun instead of Node.js, npm, pnpm, or vite.
-globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
-alwaysApply: false
----
+# CLAUDE.md
 
-Default to using Bun instead of Node.js.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
+## Commands
 
-## APIs
-
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
-
-## Testing
-
-Use `bun test` to run tests.
-
-```ts#index.test.ts
-import { test, expect } from "bun:test";
-
-test("hello world", () => {
-  expect(1).toBe(1);
-});
+```bash
+bun test              # run all tests
+bun test --filter "taskCounter"  # run a single test by name
+bun run dev           # local dev server (wrangler dev)
+bun run deploy        # deploy to Cloudflare Workers
+bun run lint          # biome check
+bun run lint:fix      # biome check --write
+bun run typecheck     # tsc --noEmit
 ```
 
-## Frontend
+## Tooling
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+- **Runtime**: Cloudflare Workers (Hono framework)
+- **Dev/Test**: Bun (not Node.js). Use `bun` for running, testing, installing.
+- **Lint/Format**: Biome (not ESLint/Prettier)
+- **Todoist SDK**: `@doist/todoist-api-typescript` — typed REST API v1 wrapper
+- **Types**: auto-generated `worker-configuration.d.ts` via `wrangler types` (runs on postinstall)
 
-Server:
+## Architecture
 
-```ts#index.ts
-import index from "./index.html"
+Cloudflare Worker that listens for Todoist webhooks and applies rewrite rules to task content.
 
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
+**`src/index.ts`** — Generic webhook dispatcher. Verifies HMAC signature, parses payload, looks up `EventConfig` from the rules registry, applies rules, then either duplicates the task or updates it in place. Contains zero domain logic.
+
+**`src/rules.ts`** — All domain logic. Defines the `RewriteRule` type (`(content: string) => string`), individual rule functions, guards, and the `eventHandlers` registry that maps Todoist event types to their config (rules array, action type, optional guard).
+
+**`src/todoist.ts`** — Thin wrappers around the Todoist SDK: `duplicateTask` (creates a copy preserving placement) and `updateTaskContent`. Handles snake_case webhook payload → camelCase SDK mapping. Uses `requestId` for idempotency.
+
+### Adding a new rewrite rule
+
+1. Write a `(content: string) => string` function in `rules.ts`. It **must be idempotent** (applying twice = same result) — this is how webhook loop prevention works for `"update"` actions.
+2. Add it to the relevant event arrays in `eventHandlers`.
+3. Add tests in `rules.test.ts`.
+
+### Event flow
+
+```
+Todoist webhook → HMAC verify → eventHandlers[event_name]
+  → guard check → applyRules(content, rules)
+  → action: "duplicate" → duplicateTask (item:completed)
+  → action: "update"    → updateTaskContent if content changed (loop prevention)
 ```
 
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
+### Secrets (set via `wrangler secret put`)
 
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
-
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+- `TODOIST_CLIENT_SECRET` — HMAC signature verification
+- `TODOIST_CLIENT_ID` — OAuth (declared in wrangler.jsonc)
+- `TODOIST_ACCESS_TOKEN` — Todoist API calls
