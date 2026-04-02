@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { checkRedditLabel, redditRewrite } from "./reddit";
 
-const ctx = (content: string, labels: string[] = []) => ({
+const ctx = (content: string, labels: string[] = [], description?: string) => ({
 	content,
 	labels,
+	description,
 });
 
 describe("redditRewrite", () => {
@@ -52,6 +53,29 @@ describe("redditRewrite", () => {
 		expect(second.addLabels).toBeUndefined();
 	});
 
+	test("rewrites Reddit URL in description", () => {
+		const result = redditRewrite(
+			ctx(
+				"Check this post",
+				[],
+				"https://reddit.com/r/programming/comments/abc",
+			),
+		);
+		expect(result.content).toBe("Check this post");
+		expect(result.description).toBe(
+			"https://reddit-libre.sunspear.dev/r/programming/comments/abc",
+		);
+		expect(result.addLabels).toEqual(["Reddit::Content"]);
+	});
+
+	test("rewrites URLs in both content and description", () => {
+		const result = redditRewrite(
+			ctx("https://reddit.com/r/a", [], "https://old.reddit.com/r/b"),
+		);
+		expect(result.content).toBe("https://reddit-libre.sunspear.dev/r/a");
+		expect(result.description).toBe("https://reddit-libre.sunspear.dev/r/b");
+	});
+
 	test("leaves non-Reddit content unchanged", () => {
 		expect(redditRewrite(ctx("Buy groceries")).addLabels).toBeUndefined();
 		expect(redditRewrite(ctx("https://x.com/user")).addLabels).toBeUndefined();
@@ -61,6 +85,12 @@ describe("redditRewrite", () => {
 describe("checkRedditLabel", () => {
 	test("returns true when Reddit::Content absent and Reddit URL present", () => {
 		expect(checkRedditLabel(ctx("https://reddit.com/r/test", []))).toBe(true);
+	});
+
+	test("returns true when Reddit URL is in description only", () => {
+		expect(
+			checkRedditLabel(ctx("Check this", [], "https://reddit.com/r/test")),
+		).toBe(true);
 	});
 
 	test("returns false when Reddit::Content label present", () => {

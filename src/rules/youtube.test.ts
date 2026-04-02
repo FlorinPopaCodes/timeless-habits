@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { checkVideoLabel, youtubeLabel } from "./youtube";
 
-const ctx = (content: string, labels: string[] = []) => ({
+const ctx = (content: string, labels: string[] = [], description?: string) => ({
 	content,
 	labels,
+	description,
 });
 
 describe("youtubeLabel", () => {
@@ -55,6 +56,17 @@ describe("youtubeLabel", () => {
 		expect(result.addLabels).toEqual(["Video::Content"]);
 	});
 
+	test("adds label when YouTube URL is in description only", () => {
+		const result = youtubeLabel(
+			ctx(
+				"Fixing Back Pain",
+				[],
+				"https://www.youtube.com/watch?v=oVOnXIiPgM8",
+			),
+		);
+		expect(result.addLabels).toEqual(["Video::Content"]);
+	});
+
 	test("leaves non-YouTube content unchanged", () => {
 		expect(youtubeLabel(ctx("Buy groceries")).addLabels).toBeUndefined();
 		expect(
@@ -80,5 +92,25 @@ describe("checkVideoLabel", () => {
 
 	test("returns false when no YouTube URL present", () => {
 		expect(checkVideoLabel(ctx("Buy groceries", []))).toBe(false);
+	});
+
+	test("returns true when YouTube URL is in description only", () => {
+		expect(
+			checkVideoLabel(
+				ctx("Fixing Back Pain", [], "https://youtube.com/watch?v=abc"),
+			),
+		).toBe(true);
+	});
+
+	test("returns false when Video::Content present even if description has URL", () => {
+		expect(
+			checkVideoLabel(
+				ctx(
+					"Fixing Back Pain",
+					["Video::Content"],
+					"https://youtube.com/watch?v=abc",
+				),
+			),
+		).toBe(false);
 	});
 });

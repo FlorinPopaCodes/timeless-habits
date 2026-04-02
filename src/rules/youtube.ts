@@ -5,10 +5,16 @@ const YOUTUBE_PATTERN =
 const VIDEO_LABEL = "Video::Content";
 
 export function checkVideoLabel(ctx: TaskContext): boolean {
-	return !ctx.labels.includes(VIDEO_LABEL) && YOUTUBE_PATTERN.test(ctx.content);
+	return (
+		!ctx.labels.includes(VIDEO_LABEL) &&
+		(YOUTUBE_PATTERN.test(ctx.content) ||
+			YOUTUBE_PATTERN.test(ctx.description ?? ""))
+	);
 }
 
 export function youtubeLabel(ctx: TaskContext): RuleResult {
-	if (!YOUTUBE_PATTERN.test(ctx.content)) return { content: ctx.content };
+	const inContent = YOUTUBE_PATTERN.test(ctx.content);
+	const inDescription = YOUTUBE_PATTERN.test(ctx.description ?? "");
+	if (!inContent && !inDescription) return { content: ctx.content };
 	return { content: ctx.content, addLabels: [VIDEO_LABEL] };
 }

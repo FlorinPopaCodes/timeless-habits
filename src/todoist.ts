@@ -15,6 +15,7 @@ export type { Task };
 export interface WebhookTask {
 	id: string;
 	content: string;
+	description: string;
 	project_id: string;
 	section_id: string | null;
 	parent_id: string | null;
@@ -42,7 +43,7 @@ async function hashPayload(input: string): Promise<string> {
 export async function updateTask(
 	api: TodoistApi,
 	taskId: string,
-	updates: { content?: string; labels?: string[] },
+	updates: { content?: string; description?: string; labels?: string[] },
 	originalTask: { content: string; labels: string[] },
 ): Promise<Task> {
 	const fingerprint = `${originalTask.content}\0${originalTask.labels.join(",")}`;

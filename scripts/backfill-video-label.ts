@@ -31,7 +31,8 @@ do {
 	for (const task of response.results) {
 		scanned++;
 		if (
-			YOUTUBE_PATTERN.test(task.content) &&
+			(YOUTUBE_PATTERN.test(task.content) ||
+				YOUTUBE_PATTERN.test(task.description)) &&
 			!task.labels.includes(VIDEO_LABEL)
 		) {
 			matched++;

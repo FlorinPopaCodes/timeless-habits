@@ -1,10 +1,12 @@
 export type TaskContext = {
 	content: string;
+	description?: string;
 	labels: string[];
 };
 
 export type RuleResult = {
 	content: string;
+	description?: string;
 	addLabels?: string[];
 };
 
@@ -23,15 +25,25 @@ export type EventConfig = {
 
 export function applyRules(ctx: TaskContext, rules: RewriteRule[]): RuleResult {
 	let content = ctx.content;
+	let description = ctx.description;
 	const addLabels: string[] = [];
 
 	for (const rule of rules) {
-		const result = rule({ content, labels: [...ctx.labels, ...addLabels] });
+		const result = rule({
+			content,
+			description,
+			labels: [...ctx.labels, ...addLabels],
+		});
 		content = result.content;
+		if (result.description !== undefined) description = result.description;
 		if (result.addLabels) {
 			addLabels.push(...result.addLabels);
 		}
 	}
 
-	return { content, addLabels: addLabels.length > 0 ? addLabels : undefined };
+	return {
+		content,
+		description,
+		addLabels: addLabels.length > 0 ? addLabels : undefined,
+	};
 }

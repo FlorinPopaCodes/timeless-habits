@@ -8,15 +8,27 @@ const TWITTER_LABEL = "Twitter::Content";
 
 export function checkTwitterLabel(ctx: TaskContext): boolean {
 	return (
-		!ctx.labels.includes(TWITTER_LABEL) && TWITTER_PATTERN.test(ctx.content)
+		!ctx.labels.includes(TWITTER_LABEL) &&
+		(TWITTER_PATTERN.test(ctx.content) ||
+			TWITTER_PATTERN.test(ctx.description ?? ""))
 	);
 }
 
 export function twitterRewrite(ctx: TaskContext): RuleResult {
-	if (!TWITTER_PATTERN.test(ctx.content)) return { content: ctx.content };
-	const content = ctx.content.replace(
-		TWITTER_PATTERN_GLOBAL,
-		"https://twitter-libre.sunspear.dev/",
-	);
-	return { content, addLabels: [TWITTER_LABEL] };
+	const inContent = TWITTER_PATTERN.test(ctx.content);
+	const inDescription = TWITTER_PATTERN.test(ctx.description ?? "");
+	if (!inContent && !inDescription) return { content: ctx.content };
+	const content = inContent
+		? ctx.content.replace(
+				TWITTER_PATTERN_GLOBAL,
+				"https://twitter-libre.sunspear.dev/",
+			)
+		: ctx.content;
+	const description = inDescription
+		? (ctx.description ?? "").replace(
+				TWITTER_PATTERN_GLOBAL,
+				"https://twitter-libre.sunspear.dev/",
+			)
+		: ctx.description;
+	return { content, description, addLabels: [TWITTER_LABEL] };
 }

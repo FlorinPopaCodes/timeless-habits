@@ -91,7 +91,11 @@ app.post("/webhooks", async (c) => {
 	const api = new TodoistApi(c.env.TODOIST_ACCESS_TOKEN);
 
 	for (const config of configs) {
-		const ctx = { content: event_data.content, labels: event_data.labels };
+		const ctx = {
+			content: event_data.content,
+			description: event_data.description,
+			labels: event_data.labels,
+		};
 
 		if (config.guard && !config.guard(ctx)) continue;
 
@@ -105,12 +109,20 @@ app.post("/webhooks", async (c) => {
 				await duplicateTask(api, event_data, result.content, mergedLabels);
 			} else {
 				const contentChanged = result.content !== event_data.content;
+				const descriptionChanged =
+					result.description !== event_data.description;
 				const hasNewLabels =
 					result.addLabels !== undefined && result.addLabels.length > 0;
 
-				if (contentChanged || hasNewLabels) {
-					const updates: { content?: string; labels?: string[] } = {};
+				if (contentChanged || descriptionChanged || hasNewLabels) {
+					const updates: {
+						content?: string;
+						description?: string;
+						labels?: string[];
+					} = {};
 					if (contentChanged) updates.content = result.content;
+					if (descriptionChanged)
+						updates.description = result.description ?? "";
 					if (result.addLabels && result.addLabels.length > 0)
 						updates.labels = [...event_data.labels, ...result.addLabels];
 					await updateTask(api, event_data.id, updates, ctx);

@@ -38,31 +38,47 @@ do {
 		];
 
 		let content = task.content;
+		let description = task.description;
 		const addLabels: string[] = [];
 
 		for (const { check, rewrite } of rules) {
-			if (!check({ content, labels: [...task.labels, ...addLabels] }))
+			if (
+				!check({
+					content,
+					description,
+					labels: [...task.labels, ...addLabels],
+				})
+			)
 				continue;
 			const result = rewrite({
 				content,
+				description,
 				labels: [...task.labels, ...addLabels],
 			});
 			content = result.content;
+			if (result.description !== undefined) description = result.description;
 			if (result.addLabels) addLabels.push(...result.addLabels);
 		}
 
 		const contentChanged = content !== task.content;
+		const descriptionChanged = description !== task.description;
 		const hasNewLabels = addLabels.length > 0;
 
-		if (contentChanged || hasNewLabels) {
+		if (contentChanged || descriptionChanged || hasNewLabels) {
 			matched++;
 			console.log(`${dryRun ? "[DRY] " : ""}${task.content}`);
 			if (contentChanged) console.log(`    → ${content}`);
+			if (descriptionChanged) console.log(`    desc → ${description}`);
 			if (hasNewLabels) console.log(`    + ${addLabels.join(", ")}`);
 
 			if (!dryRun) {
-				const updates: { content?: string; labels?: string[] } = {};
+				const updates: {
+					content?: string;
+					description?: string;
+					labels?: string[];
+				} = {};
 				if (contentChanged) updates.content = content;
+				if (descriptionChanged) updates.description = description;
 				if (hasNewLabels)
 					updates.labels = [...task.labels, ...addLabels];
 				await api.updateTask(task.id, updates);

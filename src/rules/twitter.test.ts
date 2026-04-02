@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { checkTwitterLabel, twitterRewrite } from "./twitter";
 
-const ctx = (content: string, labels: string[] = []) => ({
+const ctx = (content: string, labels: string[] = [], description?: string) => ({
 	content,
 	labels,
+	description,
 });
 
 describe("twitterRewrite", () => {
@@ -55,6 +56,25 @@ describe("twitterRewrite", () => {
 		expect(second.addLabels).toBeUndefined();
 	});
 
+	test("rewrites Twitter URL in description", () => {
+		const result = twitterRewrite(
+			ctx("Check this thread", [], "https://x.com/user/status/123"),
+		);
+		expect(result.content).toBe("Check this thread");
+		expect(result.description).toBe(
+			"https://twitter-libre.sunspear.dev/user/status/123",
+		);
+		expect(result.addLabels).toEqual(["Twitter::Content"]);
+	});
+
+	test("rewrites URLs in both content and description", () => {
+		const result = twitterRewrite(
+			ctx("https://x.com/a", [], "https://twitter.com/b"),
+		);
+		expect(result.content).toBe("https://twitter-libre.sunspear.dev/a");
+		expect(result.description).toBe("https://twitter-libre.sunspear.dev/b");
+	});
+
 	test("leaves non-Twitter content unchanged", () => {
 		expect(twitterRewrite(ctx("Buy groceries")).addLabels).toBeUndefined();
 		expect(
@@ -66,6 +86,12 @@ describe("twitterRewrite", () => {
 describe("checkTwitterLabel", () => {
 	test("returns true when Twitter::Content absent and Twitter URL present", () => {
 		expect(checkTwitterLabel(ctx("https://x.com/user", []))).toBe(true);
+	});
+
+	test("returns true when Twitter URL is in description only", () => {
+		expect(checkTwitterLabel(ctx("Check this", [], "https://x.com/user"))).toBe(
+			true,
+		);
 	});
 
 	test("returns false when Twitter::Content label present", () => {
