@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	applyRules,
 	checkTask,
+	checkVideoLabel,
 	dateUpdater,
 	taskCounter,
 	youtubeLabel,
@@ -73,18 +74,22 @@ describe("youtubeLabel", () => {
 		expect(result.addLabels).toEqual(["Video::Content"]);
 	});
 
-	test("is idempotent — skips if label already present", () => {
-		const result = youtubeLabel(
-			ctx("Watch https://youtube.com/watch?v=abc123", ["Video::Content"]),
-		);
-		expect(result.addLabels).toBeUndefined();
-	});
-
 	test("leaves non-YouTube content unchanged", () => {
 		expect(youtubeLabel(ctx("Buy groceries")).addLabels).toBeUndefined();
 		expect(
 			youtubeLabel(ctx("Check https://vimeo.com/123")).addLabels,
 		).toBeUndefined();
+	});
+});
+
+describe("checkVideoLabel", () => {
+	test("returns true when Video::Content label absent", () => {
+		expect(checkVideoLabel(ctx("any", []))).toBe(true);
+		expect(checkVideoLabel(ctx("any", ["Other"]))).toBe(true);
+	});
+
+	test("returns false when Video::Content label present", () => {
+		expect(checkVideoLabel(ctx("any", ["Video::Content"]))).toBe(false);
 	});
 });
 
@@ -131,14 +136,10 @@ describe("applyRules", () => {
 		]);
 	});
 
-	test("loop prevention: reapplying youtubeLabel with label already present is a no-op", () => {
-		const first = applyRules(ctx("Watch https://youtube.com/watch?v=abc123"), [
-			youtubeLabel,
+	test("loop prevention: guard blocks re-processing when Video::Content label present", () => {
+		const taskCtx = ctx("Watch https://youtube.com/watch?v=abc123", [
+			"Video::Content",
 		]);
-		const second = applyRules(
-			{ content: first.content, labels: [...(first.addLabels ?? [])] },
-			[youtubeLabel],
-		);
-		expect(second.addLabels).toBeUndefined();
+		expect(checkVideoLabel(taskCtx)).toBe(false);
 	});
 });

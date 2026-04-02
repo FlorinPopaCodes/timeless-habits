@@ -74,9 +74,12 @@ const YOUTUBE_PATTERN =
 	/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch|shorts)|youtu\.be\/)/;
 const VIDEO_LABEL = "Video::Content";
 
+export function checkVideoLabel(ctx: TaskContext): boolean {
+	return !ctx.labels.includes(VIDEO_LABEL);
+}
+
 export function youtubeLabel(ctx: TaskContext): RuleResult {
 	if (!YOUTUBE_PATTERN.test(ctx.content)) return { content: ctx.content };
-	if (ctx.labels.includes(VIDEO_LABEL)) return { content: ctx.content };
 	return { content: ctx.content, addLabels: [VIDEO_LABEL] };
 }
 
@@ -91,9 +94,11 @@ export const eventHandlers: Record<string, EventConfig> = {
 	"item:added": {
 		rules: [youtubeLabel],
 		action: "update",
+		guard: checkVideoLabel,
 	},
 	"item:updated": {
 		rules: [youtubeLabel],
 		action: "update",
+		guard: checkVideoLabel,
 	},
 };
