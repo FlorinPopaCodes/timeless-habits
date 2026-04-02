@@ -71,7 +71,7 @@ export function dateUpdater(ctx: TaskContext): RuleResult {
 // --- YouTube label rule ---
 
 const YOUTUBE_PATTERN =
-	/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch|shorts)|youtu\.be\/)/;
+	/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/|youtu\.be\/)/;
 const VIDEO_LABEL = "Video::Content";
 
 export function checkVideoLabel(ctx: TaskContext): boolean {

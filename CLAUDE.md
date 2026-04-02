@@ -52,3 +52,12 @@ Todoist webhook → HMAC verify → eventHandlers[event_name]
 - `TODOIST_CLIENT_SECRET` — HMAC signature verification
 - `TODOIST_CLIENT_ID` — OAuth (declared in wrangler.jsonc)
 - `TODOIST_ACCESS_TOKEN` — Todoist API calls
+
+## Code Style
+
+- **Tab indentation** (configured in `biome.json`)
+- Biome handles formatting and import organization — no Prettier/ESLint
+
+## Verification
+
+Before considering work done, run: `bun run lint && bun run typecheck && bun test`

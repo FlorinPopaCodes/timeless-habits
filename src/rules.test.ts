@@ -74,6 +74,29 @@ describe("youtubeLabel", () => {
 		expect(result.addLabels).toEqual(["Video::Content"]);
 	});
 
+	test("adds label for youtube.com/@channel/streams URLs", () => {
+		const result = youtubeLabel(
+			ctx("Live https://www.youtube.com/@ValDotTown/streams"),
+		);
+		expect(result.addLabels).toEqual(["Video::Content"]);
+	});
+
+	test("adds label for youtube.com/@channel URLs", () => {
+		const result = youtubeLabel(
+			ctx("Channel https://youtube.com/@3Blue1Brown"),
+		);
+		expect(result.addLabels).toEqual(["Video::Content"]);
+	});
+
+	test("adds label for youtube.com/playlist URLs", () => {
+		const result = youtubeLabel(
+			ctx(
+				"Playlist https://youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab",
+			),
+		);
+		expect(result.addLabels).toEqual(["Video::Content"]);
+	});
+
 	test("leaves non-YouTube content unchanged", () => {
 		expect(youtubeLabel(ctx("Buy groceries")).addLabels).toBeUndefined();
 		expect(
