@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkTask } from "./rules";
+import { checkTask } from "./rules/pinned";
 
 describe("checkTask", () => {
 	test("only care for tasks with Pinned label", () => {

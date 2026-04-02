@@ -83,47 +83,48 @@ app.post("/webhooks", async (c) => {
 
 	const { event_name, event_data } = payload;
 
-	const config = eventHandlers[event_name];
-	if (!config) {
+	const configs = eventHandlers[event_name];
+	if (!configs) {
 		return c.body(null, 204);
 	}
-
-	const ctx = { content: event_data.content, labels: event_data.labels };
-
-	if (config.guard && !config.guard(ctx)) {
-		return c.body(null, 204);
-	}
-
-	const result = applyRules(ctx, config.rules);
 
 	const api = new TodoistApi(c.env.TODOIST_ACCESS_TOKEN);
-	try {
-		if (config.action === "duplicate") {
-			const mergedLabels = result.addLabels
-				? [...event_data.labels, ...result.addLabels]
-				: event_data.labels;
-			await duplicateTask(api, event_data, result.content, mergedLabels);
-		} else {
-			const contentChanged = result.content !== event_data.content;
-			const hasNewLabels =
-				result.addLabels !== undefined && result.addLabels.length > 0;
 
-			if (contentChanged || hasNewLabels) {
-				const updates: { content?: string; labels?: string[] } = {};
-				if (contentChanged) updates.content = result.content;
-				if (result.addLabels && result.addLabels.length > 0)
-					updates.labels = [...event_data.labels, ...result.addLabels];
-				await updateTask(api, event_data.id, updates, ctx);
+	for (const config of configs) {
+		const ctx = { content: event_data.content, labels: event_data.labels };
+
+		if (config.guard && !config.guard(ctx)) continue;
+
+		const result = applyRules(ctx, config.rules);
+
+		try {
+			if (config.action === "duplicate") {
+				const mergedLabels = result.addLabels
+					? [...event_data.labels, ...result.addLabels]
+					: event_data.labels;
+				await duplicateTask(api, event_data, result.content, mergedLabels);
+			} else {
+				const contentChanged = result.content !== event_data.content;
+				const hasNewLabels =
+					result.addLabels !== undefined && result.addLabels.length > 0;
+
+				if (contentChanged || hasNewLabels) {
+					const updates: { content?: string; labels?: string[] } = {};
+					if (contentChanged) updates.content = result.content;
+					if (result.addLabels && result.addLabels.length > 0)
+						updates.labels = [...event_data.labels, ...result.addLabels];
+					await updateTask(api, event_data.id, updates, ctx);
+				}
 			}
+		} catch (error) {
+			if (error instanceof TodoistRequestError) {
+				console.error(
+					`Todoist API error: ${error.httpStatusCode} - ${error.message}`,
+				);
+				continue;
+			}
+			throw error;
 		}
-	} catch (error) {
-		if (error instanceof TodoistRequestError) {
-			console.error(
-				`Todoist API error: ${error.httpStatusCode} - ${error.message}`,
-			);
-			return c.body(null, 204);
-		}
-		throw error;
 	}
 
 	return c.body(null, 204);
