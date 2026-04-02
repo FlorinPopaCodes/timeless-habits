@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { applyRules, rewriteRules } from "./rules";
+import { applyRules, eventHandlers } from "./rules";
 import {
 	duplicateTask,
 	TodoistApi,
@@ -20,31 +20,6 @@ interface WebhookPayload {
 }
 
 const app = new Hono<{ Bindings: Bindings }>();
-
-const SAFETY_PIN = "🧷";
-
-export function checkTask(title: string): boolean {
-	return title.includes(SAFETY_PIN);
-}
-
-export function taskCounter(str: string): string {
-	return str.replace(/\[(\d+)\/?(\d+)?\]/g, (_match, num1, num2) => {
-		const incremented = Number.parseInt(num1, 10) + 1;
-		if (num2) {
-			return `[${incremented}/${num2}]`;
-		}
-		return `[${incremented}]`;
-	});
-}
-
-export function dateUpdater(str: string): string {
-	const today = new Date().toISOString().slice(0, 10);
-	return str.replace(/\[\d{4}-\d{2}-\d{2}\]/g, `[${today}]`);
-}
-
-export function updateTitle(title: string): string {
-	return dateUpdater(taskCounter(title));
-}
 
 function timingSafeEqual(a: ArrayBuffer, b: ArrayBuffer): boolean {
 	if (a.byteLength !== b.byteLength) return false;
@@ -108,45 +83,32 @@ app.post("/webhooks", async (c) => {
 
 	const { event_name, event_data } = payload;
 
-	// Duplicate pinned tasks on completion (existing behavior)
-	if (event_name === "item:completed" && checkTask(event_data.content)) {
-		const api = new TodoistApi(c.env.TODOIST_ACCESS_TOKEN);
-		const newContent = updateTitle(event_data.content);
-
-		try {
-			await duplicateTask(api, event_data, newContent);
-		} catch (error) {
-			if (error instanceof TodoistRequestError) {
-				console.error(
-					`Todoist API error: ${error.httpStatusCode} - ${error.message}`,
-				);
-				// Return 204 to acknowledge webhook and prevent retries for API errors
-				return c.body(null, 204);
-			}
-			throw error;
-		}
+	const config = eventHandlers[event_name];
+	if (!config) {
+		return c.body(null, 204);
 	}
 
-	// Apply rewrite rules for supported event types
-	const rules = rewriteRules[event_name];
-	if (rules && rules.length > 0) {
-		const newContent = applyRules(event_data.content, rules);
+	if (config.guard && !config.guard(event_data.content)) {
+		return c.body(null, 204);
+	}
 
-		// Loop prevention: skip if content unchanged (rules are idempotent)
-		if (newContent !== event_data.content) {
-			const api = new TodoistApi(c.env.TODOIST_ACCESS_TOKEN);
-			try {
-				await updateTaskContent(api, event_data.id, newContent);
-			} catch (error) {
-				if (error instanceof TodoistRequestError) {
-					console.error(
-						`Todoist API error: ${error.httpStatusCode} - ${error.message}`,
-					);
-					return c.body(null, 204);
-				}
-				throw error;
-			}
+	const newContent = applyRules(event_data.content, config.rules);
+
+	const api = new TodoistApi(c.env.TODOIST_ACCESS_TOKEN);
+	try {
+		if (config.action === "duplicate") {
+			await duplicateTask(api, event_data, newContent);
+		} else if (newContent !== event_data.content) {
+			await updateTaskContent(api, event_data.id, newContent);
 		}
+	} catch (error) {
+		if (error instanceof TodoistRequestError) {
+			console.error(
+				`Todoist API error: ${error.httpStatusCode} - ${error.message}`,
+			);
+			return c.body(null, 204);
+		}
+		throw error;
 	}
 
 	return c.body(null, 204);
