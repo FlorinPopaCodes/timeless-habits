@@ -1,8 +1,10 @@
 import { Hono } from "hono";
+import { applyRules, rewriteRules } from "./rules";
 import {
 	duplicateTask,
 	TodoistApi,
 	TodoistRequestError,
+	updateTaskContent,
 	type WebhookTask,
 } from "./todoist";
 
@@ -104,16 +106,15 @@ app.post("/webhooks", async (c) => {
 		return c.body(null, 400);
 	}
 
-	// Only process task completion events for tasks with the safety pin emoji
-	if (
-		payload.event_name === "item:completed" &&
-		checkTask(payload.event_data.content)
-	) {
+	const { event_name, event_data } = payload;
+
+	// Duplicate pinned tasks on completion (existing behavior)
+	if (event_name === "item:completed" && checkTask(event_data.content)) {
 		const api = new TodoistApi(c.env.TODOIST_ACCESS_TOKEN);
-		const newContent = updateTitle(payload.event_data.content);
+		const newContent = updateTitle(event_data.content);
 
 		try {
-			await duplicateTask(api, payload.event_data, newContent);
+			await duplicateTask(api, event_data, newContent);
 		} catch (error) {
 			if (error instanceof TodoistRequestError) {
 				console.error(
@@ -123,6 +124,28 @@ app.post("/webhooks", async (c) => {
 				return c.body(null, 204);
 			}
 			throw error;
+		}
+	}
+
+	// Apply rewrite rules for supported event types
+	const rules = rewriteRules[event_name];
+	if (rules && rules.length > 0) {
+		const newContent = applyRules(event_data.content, rules);
+
+		// Loop prevention: skip if content unchanged (rules are idempotent)
+		if (newContent !== event_data.content) {
+			const api = new TodoistApi(c.env.TODOIST_ACCESS_TOKEN);
+			try {
+				await updateTaskContent(api, event_data.id, newContent);
+			} catch (error) {
+				if (error instanceof TodoistRequestError) {
+					console.error(
+						`Todoist API error: ${error.httpStatusCode} - ${error.message}`,
+					);
+					return c.body(null, 204);
+				}
+				throw error;
+			}
 		}
 	}
 

@@ -29,6 +29,15 @@ export interface WebhookTask {
  * Uses requestId for idempotency to prevent duplicate tasks from webhook retries.
  * Includes timestamp to allow the same task to be recreated on future completions.
  */
+export async function updateTaskContent(
+	api: TodoistApi,
+	taskId: string,
+	newContent: string,
+): Promise<Task> {
+	const requestId = `th-update-${taskId}-${Date.now()}`;
+	return api.updateTask(taskId, { content: newContent }, requestId);
+}
+
 export async function duplicateTask(
 	api: TodoistApi,
 	task: WebhookTask,
