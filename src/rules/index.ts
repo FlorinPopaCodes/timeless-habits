@@ -1,3 +1,4 @@
+export { checkGithubLabel, githubLabel } from "./github";
 export { checkTask, dateUpdater, taskCounter } from "./pinned";
 export { checkRedditLabel, redditRewrite } from "./reddit";
 export { checkTwitterLabel, twitterRewrite } from "./twitter";
@@ -10,6 +11,7 @@ export type {
 export { applyRules } from "./types";
 export { checkVideoLabel, youtubeLabel } from "./youtube";
 
+import { checkGithubLabel, githubLabel } from "./github";
 import { checkTask, dateUpdater, taskCounter } from "./pinned";
 import { checkRedditLabel, redditRewrite } from "./reddit";
 import { checkTwitterLabel, twitterRewrite } from "./twitter";
@@ -28,10 +30,12 @@ export const eventHandlers: Record<string, EventConfig[]> = {
 		{ rules: [youtubeLabel], action: "update", guard: checkVideoLabel },
 		{ rules: [twitterRewrite], action: "update", guard: checkTwitterLabel },
 		{ rules: [redditRewrite], action: "update", guard: checkRedditLabel },
+		{ rules: [githubLabel], action: "update", guard: checkGithubLabel },
 	],
 	"item:updated": [
 		{ rules: [youtubeLabel], action: "update", guard: checkVideoLabel },
 		{ rules: [twitterRewrite], action: "update", guard: checkTwitterLabel },
 		{ rules: [redditRewrite], action: "update", guard: checkRedditLabel },
+		{ rules: [githubLabel], action: "update", guard: checkGithubLabel },
 	],
 };
